@@ -9,7 +9,8 @@ async function exposeService(name) {
 
 async function deleteRoute(name) {
   try {
-    await exec(`oc delete route ${name}`);
+    const routeName = await exec(`oc get routes | awk '/^${name}/{print $1}'`);
+    await exec(`oc delete route ${routeName}`);
   } catch (_) {}  // eslint-disable-line no-empty
 }
 

@@ -14,6 +14,7 @@
     "chart-stream": "^1.1.1",
     "fh-aaa-client": "^0.5.1",
     "fh-fhc": "^2.18.0-896",
+    "fh-messaging-client": "^1.0.4",
     "fh-millicore-client": "^0.7.0",
     "load-runner": "^1.0.3",
     "opn": "^5.2.0",

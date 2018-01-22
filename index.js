@@ -5,31 +5,46 @@ const fs = require('fs');
 const path = require('path');
 const exec = require('./utils/execute');
 const routes = require('./utils/routes');
+const oc = require('./utils/oc');
 
 const argv = yargs
   .demandOption(['component'])
   .default('concurrency', 1)
   .default('numUsers', 1)
   .default('rampUp', 1)
+  .default('monInterval', 1)
+  .default('coreProject', '')
   .alias('c', 'concurrency')
   .alias('n', 'numUsers')
   .alias('r', 'rampUp')
+  .alias('i', 'monInterval')
+  .alias('p', 'coreProject')
   .describe('component', 'RHMAP component to load test')
   .describe('concurrency', 'Concurrency of Users')
   .describe('numUsers', 'Number of Users (number of total runs)')
   .describe('rampUp', 'Ramp up time to Concurrency of Users (in seconds)')
+  .describe('monInterval', 'Monitor interval')
+  .describe('coreProject', 'Name of OpenShift project with RHMAP core')
   .argv;
 
-const monitorInterval = 1000;
+const monitorInterval = argv.monInterval * 1000;
 
-function podNameCommand(component) {
-  return `$(oc get pods | awk '/^${component}/{print $1}')`;
-}
+async function getRHMAPCredentials(coreProject) {
+  let currentOSProject;
+  if (coreProject !== '') {
+    currentOSProject = (await exec(`oc project | awk '{print $3}'`)).slice(1, -1);
+    await exec(`oc project ${coreProject}`);
+  }
 
-async function getRHMAPCredentials() {
   const host = await exec(`oc get routes | awk '/^rhmap/{print $2}'`);
-  const user = await exec(`oc describe pod ${podNameCommand('millicore')} | awk '/FH_ADMIN_USER_NAME/{print $2}'`);
-  const pass = await exec(`oc describe pod ${podNameCommand('millicore')} | awk '/FH_ADMIN_USER_PASSWORD/{print $2}'`);
+  const millicorePod = (await oc.getPodNames('millicore'))[0];
+  const user = await exec(`oc describe pod ${millicorePod} | awk '/FH_ADMIN_USER_NAME/{print $2}'`);
+  const pass = await exec(`oc describe pod ${millicorePod} | awk '/FH_ADMIN_USER_PASSWORD/{print $2}'`);
+
+  if (coreProject !== '') {
+    await exec(`oc project ${currentOSProject}`);
+  }
+
   return {
     host: host,
     user: user,
@@ -37,23 +52,40 @@ async function getRHMAPCredentials() {
   };
 }
 
-function usageCommand(component, resource) {  // eslint-disable-line no-unused-vars
+function usageCommand(podName, resource) {  // eslint-disable-line no-unused-vars
   // return `oc describe pod ${getPodName} | grep -A 2 Limits | awk '/${resource}/{print $2}'`;
-  return `oc exec ${podNameCommand(component)} free | awk '/^Mem:/{print $3}'`;
+  return `oc exec ${podName} free | awk '/^Mem:/{print $3}'`;
 }
 
-function monitorResources(interval, component) {
-  chart.write('memory');
+async function monitorResources(interval, component) {
+  let components;
+  if (component === 'all') {
+    components = (await exec(`oc get services | grep TCP | awk '{print $1}'`)).split('\n');
+  } else {
+    components = [component];
+  }
+  let pods = [];
+  for (const component of components) {
+    const componentPods = await oc.getPodNames(component);
+    pods = pods.concat(componentPods);
+  }
+  chart.write(pods.join(','));
   const usageHistory = [];
   const monitorId = setInterval(async() => {
     const usage = {};
-    try {
-      const stdout = await exec(usageCommand(component, 'memory'));
-      usage.memory = parseInt(stdout);
-    } catch (_) {
-      usage.memory = 0;
+    for (const pod of pods) {
+      try {
+        const stdout = await exec(usageCommand(pod, 'memory'));
+        usage[`${pod}_memory`] = parseInt(stdout);
+        if (isNaN(usage[`${pod}_memory`])) {
+          usage[`${pod}_memory`] = 0;
+        }
+      } catch (_) {
+        usage[`${pod}_memory`] = 0;
+      }
     }
-    chart.write(`${usage.memory}`);
+    const values = pods.map(pod => usage[`${pod}_memory`]);
+    chart.write(values.join(','));
     usageHistory.push(usage);
   }, interval);
   return { monitorId, usageHistory };
@@ -87,18 +119,23 @@ function saveResults(usageHistory) {
   }
   const file = path.resolve(dir, `${Date.now()}`);
   fs.writeFileSync(file + '.json', JSON.stringify(usageHistory, null, 2));
-  // to csv
-  const csv = 'memory\n' + usageHistory.map(usage => usage.memory).join('\n');
-  fs.writeFileSync(file + '.csv', csv);
+  // // to csv
+  // const csv = 'memory\n' + usageHistory.map(usage => usage.memory).join('\n');
+  // fs.writeFileSync(file + '.csv', csv);
 }
 
 async function run() {
-  const rhmap = await getRHMAPCredentials();
-  const host = await routes.exposeService(argv.component);
+  const rhmap = await getRHMAPCredentials(argv.coreProject);
+  let host;
+  if (argv.component !== 'all') {
+    host = await routes.exposeService(argv.component);
+  }
   const { monitorId, usageHistory } = monitorResources(monitorInterval, argv.component);
   await startTest(host, rhmap, argv);
   clearInterval(monitorId);
-  await routes.deleteRoute(argv.component);
+  if (argv.component !== 'all') {
+    await routes.deleteRoute(argv.component);
+  }
   saveResults(usageHistory);
   process.exit();
 }

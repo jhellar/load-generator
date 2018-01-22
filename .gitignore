@@ -2,5 +2,5 @@ node_modules
 .vscode
 temp.json
 runs
-results
+results*
 .DS_Store

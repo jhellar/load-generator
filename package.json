@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "eslint": "eslint scenarios/**/*.js utils/**/*.js index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "prestart": "npm run build-images",
+    "build-images": "bash init.sh"
   },
   "author": "",
   "license": "ISC",

@@ -1,0 +1,9 @@
+FROM node
+
+COPY mbaas-art /home/node/mbaas-art
+
+WORKDIR /home/node/mbaas-art
+
+RUN npm install
+
+RUN npm install -g grunt-cli

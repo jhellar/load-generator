@@ -7,7 +7,6 @@ const config = {
   port: '80',
   protocol: 'http'
 };
-console.log(config);
 const fhMessaging = require('fh-messaging-client')(config);
 
 async.waterfall([
@@ -16,9 +15,7 @@ async.waterfall([
     const message = {
       'foo': 'bar'
     };
-    fhMessaging.createAppMessage('log', message, (err, res) => {
-      console.log(err);
-      console.log(res);
+    fhMessaging.createAppMessage('log', message, err => {
       lr.actEnd('createAppMessage');
       cb(err);
     });
@@ -28,9 +25,7 @@ async.waterfall([
     const data = {
       'foo': 'bar'
     };
-    fhMessaging.sendMbaasMetrics(Date.now() - 1000, Date.now(), 'domain', data, (err, res) => {
-      console.log(err);
-      console.log(res);
+    fhMessaging.sendMbaasMetrics(Date.now() - 1000, Date.now(), 'domain', data, err => {
       lr.actEnd('sendMbaasMetrics');
       cb(err);
     });

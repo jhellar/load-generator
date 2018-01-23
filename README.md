@@ -14,7 +14,7 @@ Tool helps to generate load for RHMAP components in OpenShift and monitor their 
 
 `npm start -- --component fh-aaa -c 100 -n 1000`
 
-If you want to test mbaas component, use `--coreProject` to specify name of OpenShift project wirh RHMAP core. It is used to get RHMAP credentials.
+If you want to test mbaas component, use `--coreProject` to specify name of OpenShift project with RHMAP core. It is used to get RHMAP credentials.
 
 ## Usage
 

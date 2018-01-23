@@ -1,0 +1,11 @@
+FROM node
+
+COPY fh-art /home/node/fh-art
+
+WORKDIR /home/node/fh-art
+
+RUN npm install
+
+RUN npm install -g grunt-cli
+
+CMD grunt test-core:core --prefix load-fh-${PREFIX} --coreusername ${USERNAME} --corepassword ${PASSWORD} --corehost ${COREHOST}

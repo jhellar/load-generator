@@ -1,6 +1,8 @@
 const yargs = require('yargs');
 const opn = require('opn');
-const chart = require('chart-stream')(opn);
+const chartStream = require('chart-stream');
+const cpuChart = chartStream(opn);
+const memChart = chartStream(opn);
 const fs = require('fs');
 const path = require('path');
 const _ = require('underscore');
@@ -14,7 +16,7 @@ const argv = yargs
   .default('concurrency', 1)
   .default('numUsers', 1)
   .default('rampUp', 1)
-  .default('monInterval', 1)
+  .default('monInterval', 5)
   .default('coreProject', '')
   .default('monitor', [])
   .alias('c', 'concurrency')
@@ -57,9 +59,35 @@ async function getRHMAPCredentials(coreProject) {
   };
 }
 
-function usageCommand(container, resource) {  // eslint-disable-line no-unused-vars
-  // return `oc describe pod ${getPodName} | grep -A 2 Limits | awk '/${resource}/{print $2}'`;
-  return `oc exec ${container.pod} -c ${container.name} free | awk '/^Mem:/{print $3}'`;
+async function execContainer(container, command) {
+  return await exec(`oc exec ${container.pod} -c ${container.name} -- ${command}`);
+}
+
+function getCpuUsage(usageHistory, containers) {
+  if (usageHistory.length < 2) {
+    return;
+  }
+  const curr = usageHistory[usageHistory.length - 1];
+  const prev = usageHistory[usageHistory.length - 2];
+  return containers.map(container => {
+    if (!curr[`${container.pod}-${container.name}`] || !prev[`${container.pod}-${container.name}`]) {
+      return 0;
+    }
+
+    const currCpuUsage = curr[`${container.pod}-${container.name}`].cpuUsage;
+    const currUptime = curr[`${container.pod}-${container.name}`].uptime;
+    const prevCpuUsage = prev[`${container.pod}-${container.name}`].cpuUsage;
+    const prevUptime = prev[`${container.pod}-${container.name}`].uptime;
+
+    if (isNaN(currCpuUsage) || isNaN(currUptime) || isNaN(prevCpuUsage) || isNaN(prevUptime)) {
+      return 0;
+    }
+
+    const cpuUsage = currCpuUsage - prevCpuUsage;
+    const uptime = (currUptime - prevUptime) * 1000000000;
+
+    return (cpuUsage * 1.0 / uptime) * 1000;
+  });
 }
 
 async function monitorResources(interval, component, additionalComponents) {
@@ -89,25 +117,31 @@ async function monitorResources(interval, component, additionalComponents) {
     containers = containers.concat(containerNames);
   }
 
-  chart.write(containers.map(container => `${container.pod}-${container.name}`).join(','));
+  cpuChart.write(containers.map(container => `${container.pod}-${container.name}`).join(','));
+  memChart.write(containers.map(container => `${container.pod}-${container.name}`).join(','));
   const usageHistory = [];
   const monitorId = setInterval(async() => {
     const usage = {};
     for (const container of containers) {
-      const id = `${container.pod}-${container.name}_memory`;
+      const id = `${container.pod}-${container.name}`;
       try {
-        const stdout = await exec(usageCommand(container, 'memory'));
-        usage[id] = parseInt(stdout);
-        if (isNaN(usage[id])) {
-          usage[id] = 0;
-        }
-      } catch (_) {
-        usage[id] = 0;
-      }
+        const uptime = await execContainer(container, 'ps -p 1 -o etimes:1=');
+        const cpuUsage = await execContainer(container, 'cat /sys/fs/cgroup/cpuacct,cpu/cpuacct.usage');
+        const memUsage = await execContainer(container, 'cat /sys/fs/cgroup/memory/memory.usage_in_bytes');
+        usage[id] = {
+          uptime: parseInt(uptime),
+          cpuUsage: parseInt(cpuUsage),
+          memUsage: parseInt(memUsage)
+        };
+      } catch (_) { } // eslint-disable-line no-empty
     }
-    const values = containers.map(container => usage[`${container.pod}-${container.name}_memory`]);
-    chart.write(values.join(','));
     usageHistory.push(usage);
+    const cpuValues = getCpuUsage(usageHistory, containers);
+    const memValues = containers.map(container => usage[`${container.pod}-${container.name}`].memUsage);
+    if (cpuValues) {
+      cpuChart.write(cpuValues.join(','));
+    }
+    memChart.write(memValues.join(','));
   }, interval);
   return { monitorId, usageHistory };
 }

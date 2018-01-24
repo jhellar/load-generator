@@ -8,7 +8,7 @@ async function run() {
   try {
     await exec(`\
       docker run \
-      -e "PREFIX=fa${Date.now()}" \
+      -e "PREFIX=${Date.now()}" \
       -e "USERNAME=${process.env.RHMAP_USER}" \
       -e "PASSWORD=${process.env.RHMAP_PASS}" \
       -e "COREHOST=${process.env.RHMAP_HOST}" \

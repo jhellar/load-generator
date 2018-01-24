@@ -36,6 +36,9 @@ const argv = yargs
 
 const monitorInterval = argv.monInterval * 1000;
 
+const maxCpuUsage = {};
+const maxMemUsage = {};
+
 async function getRHMAPCredentials(coreProject) {
   let currentOSProject;
   if (coreProject !== '') {
@@ -70,14 +73,15 @@ function getCpuUsage(usageHistory, containers) {
   const curr = usageHistory[usageHistory.length - 1];
   const prev = usageHistory[usageHistory.length - 2];
   return containers.map(container => {
-    if (!curr[`${container.pod}-${container.name}`] || !prev[`${container.pod}-${container.name}`]) {
+    const id = `${container.pod}-${container.name}`;
+    if (!curr[id] || !prev[id]) {
       return 0;
     }
 
-    const currCpuUsage = curr[`${container.pod}-${container.name}`].cpuUsage;
-    const currUptime = curr[`${container.pod}-${container.name}`].uptime;
-    const prevCpuUsage = prev[`${container.pod}-${container.name}`].cpuUsage;
-    const prevUptime = prev[`${container.pod}-${container.name}`].uptime;
+    const currCpuUsage = curr[id].cpuUsage;
+    const currUptime = curr[id].uptime;
+    const prevCpuUsage = prev[id].cpuUsage;
+    const prevUptime = prev[id].uptime;
 
     if (isNaN(currCpuUsage) || isNaN(currUptime) || isNaN(prevCpuUsage) || isNaN(prevUptime)) {
       return 0;
@@ -86,7 +90,11 @@ function getCpuUsage(usageHistory, containers) {
     const cpuUsage = currCpuUsage - prevCpuUsage;
     const uptime = (currUptime - prevUptime) * 1000000000;
 
-    return (cpuUsage * 1.0 / uptime) * 1000;
+    const usage = (cpuUsage * 1.0 / uptime) * 1000;
+    if (!maxCpuUsage[id] || maxCpuUsage[id] < usage) {
+      maxCpuUsage[id] = usage;
+    }
+    return usage;
   });
 }
 
@@ -133,6 +141,9 @@ async function monitorResources(interval, component, additionalComponents) {
           cpuUsage: parseInt(cpuUsage),
           memUsage: parseInt(memUsage)
         };
+        if (!maxMemUsage[id] || maxMemUsage[id] < usage[id].memUsage) {
+          maxMemUsage[id] = usage[id].memUsage;
+        }
       } catch (_) { } // eslint-disable-line no-empty
     }
     usageHistory.push(usage);
@@ -179,6 +190,13 @@ function saveResults(usageHistory) {
   // fs.writeFileSync(file + '.csv', csv);
 }
 
+function printMaxUsage() {
+  console.log('Max CPU usage:');
+  console.log(JSON.stringify(maxCpuUsage, null, 2));
+  console.log('Max memory usage:');
+  console.log(JSON.stringify(maxMemUsage, null, 2));
+}
+
 async function run() {
   const rhmap = await getRHMAPCredentials(argv.coreProject);
   let host;
@@ -192,6 +210,7 @@ async function run() {
     await routes.deleteRoute(argv.component);
   }
   saveResults(usageHistory);
+  printMaxUsage();
   process.exit();
 }
 

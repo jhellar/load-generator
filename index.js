@@ -91,7 +91,7 @@ function getCpuUsage(usageHistory, containers) {
     const uptime = (currUptime - prevUptime) * 1000000000;
 
     const usage = (cpuUsage * 1.0 / uptime) * 1000;
-    if (!maxCpuUsage[id] || maxCpuUsage[id] < usage) {
+    if (usage && (!maxCpuUsage[id] || maxCpuUsage[id] < usage)) {
       maxCpuUsage[id] = usage;
     }
     return usage;
@@ -141,7 +141,7 @@ async function monitorResources(interval, component, additionalComponents) {
           cpuUsage: parseInt(cpuUsage),
           memUsage: parseInt(memUsage)
         };
-        if (!maxMemUsage[id] || maxMemUsage[id] < usage[id].memUsage) {
+        if (usage[id].memUsage && (!maxMemUsage[id] || maxMemUsage[id] < usage[id].memUsage)) {
           maxMemUsage[id] = usage[id].memUsage;
         }
       } catch (_) { } // eslint-disable-line no-empty

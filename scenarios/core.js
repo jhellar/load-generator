@@ -7,7 +7,7 @@ async function run() {
   let error;
   try {
     await exec(`\
-      docker run \
+      $DOCKER_SUDO docker run \
       -e "PREFIX=${Date.now()}" \
       -e "USERNAME=${process.env.RHMAP_USER}" \
       -e "PASSWORD=${process.env.RHMAP_PASS}" \

@@ -10,13 +10,6 @@ if [ -d "temp" ]; then
   rm -rf temp
 fi
 
-# do I need sudo for docker commands?
-if docker pull node >/dev/null; then
-  DOCKER_SUDO=""
-else
-  DOCKER_SUDO="sudo"
-fi
-
 # build docker images for test suites
 for suite in "${suites[@]}"
 do
@@ -45,7 +38,7 @@ do
   # build docker image for test suite
   echo "Building docker image..."
   cp ../dockerfiles/${suite} ./Dockerfile
-  $DOCKER_SUDO docker build . -t load-test-${suite} #>/dev/null
+  $DOCKER_SUDO docker build -t load-test-${suite} . #>/dev/null
 
   # remove temp dir
   cd ..

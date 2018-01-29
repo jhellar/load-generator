@@ -8,7 +8,7 @@ async function run() {
   let error;
   try {
     await exec(`\
-      docker run \
+      $DOCKER_SUDO docker run \
       load-test-mbaas-art \
       grunt art:openshift3 \
       --fhMbaasHost https://${params.host} \
@@ -18,7 +18,7 @@ async function run() {
       || true \
     `);
     await exec(`\
-      docker run \
+      $DOCKER_SUDO docker run \
       load-test-mbaas-art \
       grunt art-core:core \
       --prefix mac-${Date.now()} \

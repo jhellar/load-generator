@@ -10,16 +10,23 @@ if [ -d "temp" ]; then
   rm -rf temp
 fi
 
+# do I need sudo for docker commands?
+if docker pull node >/dev/null; then
+  DOCKER_SUDO=""
+else
+  DOCKER_SUDO="sudo"
+fi
+
 # build docker images for test suites
 for suite in "${suites[@]}"
 do
   # if "-f" parameter was passed rebuild image even if it already exists
   if [ "$1" = "-f" ]; then
-    docker rmi load-test-${suite}
+    $DOCKER_SUDO docker rmi load-test-${suite}
   fi
 
   # skip if docker image with test suite already exists
-  if docker images | grep load-test-${suite} >/dev/null; then
+  if $DOCKER_SUDO docker images | grep load-test-${suite} >/dev/null; then
     echo "Image for ${suite} already exists -> skipping"
     continue
   fi
@@ -38,7 +45,7 @@ do
   # build docker image for test suite
   echo "Building docker image..."
   cp ../dockerfiles/${suite} ./Dockerfile
-  docker build . -t load-test-${suite} #>/dev/null
+  $DOCKER_SUDO docker build . -t load-test-${suite} #>/dev/null
 
   # remove temp dir
   cd ..

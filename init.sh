@@ -2,6 +2,7 @@
 declare -a suites=(
   "fh-art"
   "mbaas-art"
+  "fh-uart"
 )
 
 # remove temp dir if it exists

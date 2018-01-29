@@ -25,6 +25,7 @@ const argv = yargs
   .alias('i', 'monInterval')
   .alias('p', 'coreProject')
   .alias('m', 'monitor')
+  .alias('e', 'expose')
   .describe('component', 'RHMAP component to load test')
   .describe('concurrency', 'Concurrency of Users')
   .describe('numUsers', 'Number of Users (number of total runs)')
@@ -32,6 +33,7 @@ const argv = yargs
   .describe('monInterval', 'Monitor interval')
   .describe('coreProject', 'Name of OpenShift project with RHMAP core')
   .describe('monitor', 'Additional components to monitor')
+  .describe('expose', 'Expose component')
   .argv;
 
 const monitorInterval = argv.monInterval * 1000;
@@ -200,13 +202,13 @@ function printMaxUsage() {
 async function run() {
   const rhmap = await getRHMAPCredentials(argv.coreProject);
   let host;
-  if (argv.component !== 'core') {
+  if (argv.expose) {
     host = await routes.exposeService(argv.component);
   }
   const { monitorId, usageHistory } = await monitorResources(monitorInterval, argv.component, argv.monitor);
   await startTest(host, rhmap, argv);
   clearInterval(monitorId);
-  if (argv.component !== 'core') {
+  if (argv.expose) {
     await routes.deleteRoute(argv.component);
   }
   saveResults(usageHistory);

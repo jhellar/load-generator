@@ -1,0 +1,17 @@
+FROM selenium/standalone-chrome
+
+USER seluser
+
+RUN sudo apt-get update && sudo apt-get install -y curl
+
+RUN curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+
+RUN sudo apt-get update && sudo apt-get install -y nodejs git-all build-essential
+
+COPY --chown=seluser fh-uart /home/seluser/fh-uart
+
+WORKDIR /home/seluser/fh-uart
+
+RUN npm install
+
+RUN sudo npm install -g grunt-cli

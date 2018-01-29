@@ -11,7 +11,7 @@ async function run() {
       docker run \
       load-test-mbaas-art \
       grunt art:openshift3 \
-      --fhMbaasHost https://${process.argv[2]} \
+      --fhMbaasHost https://${params.host} \
       --servicekey ${params.serviceKey} \
       --prefix ma-${Date.now()} \
       >/dev/null 2>&1 \
@@ -26,7 +26,7 @@ async function run() {
       --coreusername ${process.env.RHMAP_USER} \
       --corepassword ${process.env.RHMAP_PASS} \
       --corehost ${process.env.RHMAP_HOST} \
-      --environment dev \
+      --environment development \
       >/dev/null 2>&1 \
       || true \
     `);

@@ -8,7 +8,9 @@ RUN curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
 
 RUN sudo apt-get update && sudo apt-get install -y nodejs git-all build-essential
 
-COPY --chown=seluser fh-uart /home/seluser/fh-uart
+COPY fh-uart /home/seluser/fh-uart
+
+RUN chown -R seluser /home/seluser/fh-uart
 
 WORKDIR /home/seluser/fh-uart
 

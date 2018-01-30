@@ -100,6 +100,16 @@ function getCpuUsage(usageHistory, containers) {
   });
 }
 
+function writeCsvHeader(containers, resourceType) {
+  const dir = path.resolve(__dirname, 'results');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+  const file = path.resolve(dir, `${resourceType}-${Date.now()}.csv`);
+  fs.writeFileSync(file, containers.map(container => `${container.pod}-${container.name}`).join(',') + '\n');
+  return file;
+}
+
 async function monitorResources(interval, component, additionalComponents) {
   // get pod names
   let pods = [];
@@ -129,6 +139,8 @@ async function monitorResources(interval, component, additionalComponents) {
 
   cpuChart.write(containers.map(container => `${container.pod}-${container.name}`).join(','));
   memChart.write(containers.map(container => `${container.pod}-${container.name}`).join(','));
+  const cpuCsvFileName = writeCsvHeader(containers, 'cpu');
+  const memoryCsvFileName = writeCsvHeader(containers, 'memory');
   const usageHistory = [];
   const monitorId = setInterval(async() => {
     const usage = {};
@@ -153,8 +165,10 @@ async function monitorResources(interval, component, additionalComponents) {
     const memValues = containers.map(container => usage[`${container.pod}-${container.name}`].memUsage);
     if (cpuValues) {
       cpuChart.write(cpuValues.join(','));
+      fs.appendFileSync(cpuCsvFileName, cpuValues.join(',') + '\n');
     }
     memChart.write(memValues.join(','));
+    fs.appendFileSync(memoryCsvFileName, memValues.join(',') + '\n');
   }, interval);
   return { monitorId, usageHistory };
 }
@@ -187,9 +201,6 @@ function saveResults(usageHistory) {
   }
   const file = path.resolve(dir, `${Date.now()}`);
   fs.writeFileSync(file + '.json', JSON.stringify(usageHistory, null, 2));
-  // // to csv
-  // const csv = 'memory\n' + usageHistory.map(usage => usage.memory).join('\n');
-  // fs.writeFileSync(file + '.csv', csv);
 }
 
 function printMaxUsage() {
